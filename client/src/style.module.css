@@ -1,0 +1,45 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 50vh;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+nav {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    padding: 2rem;
+    justify-content: center;
+}
+
+.catsContainer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0 15rem;
+}
+
+.textContainer {
+    padding: 0 25%;
+}
+
+input {
+    padding: 0.5rem;
+    border-radius: 0.2rem;
+    border: 1px #999 solid;
+}
+
+button {
+    border: none;
+    padding: 0.5rem;
+    border-radius: 0.2rem;
+    background: #888;
+    color: white;
+}
