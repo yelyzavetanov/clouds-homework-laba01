@@ -1,4 +1,4 @@
-.container {
+.container, .chatContainer {
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -6,6 +6,15 @@
     align-items: center;
     justify-content: center;
     gap: 1rem;
+}
+
+.chatContainer {
+    border: 2px #999 solid;
+    padding: 1rem 0.5rem 1rem;
+    border-radius: 1rem;
+    width: 500px;
+    height: 70vh;
+    justify-content: flex-end;
 }
 
 nav {
@@ -28,6 +37,33 @@ nav {
 
 .textContainer {
     padding: 0 25%;
+}
+
+.messages {
+    display: flex;
+    flex-direction: column;
+    justify-content: start;
+    align-items: flex-end;
+    width: 100%;
+    box-sizing: border-box;
+    gap: 1rem;
+    padding: 1rem 0.5rem 1rem;
+    max-width: 100%;
+    flex: 1;
+    overflow-y: scroll;
+}
+
+.message {
+    padding: 0.5rem;
+    border: 2px solid #777;
+    border-radius: 0.5rem 0 0.5rem 0.5rem;
+    min-width: 5rem;
+}
+
+.messageInput {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
 }
 
 input {
