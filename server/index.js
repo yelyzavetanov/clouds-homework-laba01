@@ -9,7 +9,6 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const csurf = require('csurf');
-const sanitizeHtml = require('sanitize-html');
 
 const {
     DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, PORT, SESSION_SECRET
@@ -46,7 +45,6 @@ app.use(session({
     cookie: {
         httpOnly: true,
         secure: false,
-        sameSite: 'Strict',
         maxAge: 1000 * 60 * 60
     }
 }));
@@ -59,14 +57,6 @@ app.use(csurf({
         sameSite: 'Strict'
     }
 }));
-
-// CSRF error handler
-app.use((err, req, res, next) => {
-    if (err.code === 'EBADCSRFTOKEN') {
-        return res.status(403).json({ error: 'Invalid CSRF token' });
-    }
-    next(err);
-});
 
 // Route to provide CSRF token to React
 app.get('/api/csrf-token', (req, res) => {
@@ -83,16 +73,11 @@ app.post('/api/register', async (req, res) => {
         const { email, password, name } = req.body;
         if (!email || !password) return res.status(400).json({ error: 'Missing fields' });
 
-        const cleanName = name ? sanitizeHtml(name, {
-            allowedTags: [],
-            allowedAttributes: {}
-        }) : null;
-
         const [rows] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
         if (rows.length) return res.status(409).json({ error: 'User exists' });
 
         const hash = await bcrypt.hash(password, 10);
-        await pool.query('INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)', [email, hash, cleanName]);
+        await pool.query('INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)', [email, hash, name || null]);
         return res.json({ success: true });
     } catch (err) {
         console.error(err);
@@ -112,6 +97,8 @@ app.post('/api/login', async (req, res) => {
         const ok = await bcrypt.compare(password, user.password_hash);
         if (!ok) return res.status(401).json({ error: 'Invalid' });
 
+        req.session.userId = user.id;
+        req.session.userEmail = user.email;
         req.session.regenerate(err => {
             if (err) console.error('session regenerate err', err);
             req.session.userId = user.id;
@@ -123,3 +110,30 @@ app.post('/api/login', async (req, res) => {
         res.status(500).json({ error: 'Server error' });
     }
 });
+
+app.get('/api/profile', requireAuth, async (req, res) => {
+    try {
+        const [rows] = await pool.query('SELECT id, email, name, created_at FROM users WHERE id = ?', [req.session.userId]);
+        if (!rows.length) return res.status(404).json({ error: 'Not found' });
+        res.json({ user: rows[0] });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.post('/api/logout', (req, res) => {
+    req.session.destroy(err => {
+        if (err) return res.status(500).json({ error: 'Could not logout' });
+        res.clearCookie('sid'); // назва cookie у налаштуваннях session.key
+        res.json({ success: true });
+    });
+});
+
+// CSRF error handler
+app.use((err, req, res, next) => {
+    if (err.code === 'EBADCSRFTOKEN') return res.status(403).json({ error: 'Invalid CSRF token' });
+    next(err);
+});
+
+app.listen(PORT || 4000, () => console.log(`Server running on ${PORT || 4000}`));
