@@ -9,6 +9,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const csurf = require('csurf');
+const crypto = require('crypto');
 
 const {
     DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, PORT, SESSION_SECRET
@@ -97,19 +98,32 @@ app.post('/api/login', async (req, res) => {
         const ok = await bcrypt.compare(password, user.password_hash);
         if (!ok) return res.status(401).json({ error: 'Invalid' });
 
-        req.session.userId = user.id;
-        req.session.userEmail = user.email;
-        req.session.regenerate(err => {
-            if (err) console.error('session regenerate err', err);
-            req.session.userId = user.id;
-            req.session.userEmail = user.email;
-            res.json({ success: true });
+        // ---- CREATE ACCESS TOKEN ----
+        const accessToken = crypto
+            .createHash('sha256')
+            .update(user.email + Date.now())
+            .digest('hex');
+
+        console.log("token: ", accessToken);
+
+        await pool.query(
+            'INSERT INTO tokens (user_id, token) VALUES (?, ?)',
+            [user.id, accessToken]
+        );
+
+        // ---- SEND TOKEN TO FRONTEND ----
+        res.json({
+            success: true,
+            accessToken
         });
+
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Server error' });
     }
 });
+
+
 
 app.get('/api/profile', requireAuth, async (req, res) => {
     try {
@@ -127,6 +141,25 @@ app.post('/api/logout', (req, res) => {
         if (err) return res.status(500).json({ error: 'Could not logout' });
         res.clearCookie('sid'); // назва cookie у налаштуваннях session.key
         res.json({ success: true });
+    });
+});
+
+app.get('/api/validate', async (req, res) => {
+    const token = req.query.token;
+    if (!token) return res.status(400).json({ error: "No token" });
+
+    const [rows] = await pool.query(
+        "SELECT id, email, name FROM users WHERE access_token = ?",
+        [token]
+    );
+
+    if (!rows.length) {
+        return res.status(404).json({ error: "Invalid token" });
+    }
+
+    res.json({
+        valid: true,
+        user: rows[0]
     });
 });
 
